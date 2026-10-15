@@ -1,0 +1,39 @@
+--- a/open-sse/utils/stream.js
++++ b/open-sse/utils/stream.js
+@@ -160,6 +160,10 @@
+ 
+         // Passthrough mode: normalize and forward
+         if (mode === STREAM_MODE.PASSTHROUGH) {
++          if (trimmed.startsWith("data:") && trimmed.slice(5).trim() === "[DONE]") {
++            if (streamDoneSent) continue;
++            streamDoneSent = true;
++          }
+           let output;
+           let injectedUsage = false;
+           let responsesTerminal = false;
+@@ -431,12 +435,19 @@
+ 
+         if (mode === STREAM_MODE.PASSTHROUGH) {
+           if (buffer) {
+-            let output = buffer;
+-            if (buffer.startsWith("data:") && !buffer.startsWith("data: ")) {
+-              output = "data: " + buffer.slice(5);
+-            }
+-            reqLogger?.appendConvertedChunk?.(output);
+-            controller.enqueue(sharedEncoder.encode(output));
++            const trimmed = buffer.trim();
++            const isDone = trimmed.startsWith("data:") && trimmed.slice(5).trim() === "[DONE]";
++            if (!isDone || !streamDoneSent) {
++              let output = buffer + "\n\n";
++              if (isDone) {
++                streamDoneSent = true;
++                output = SSE_DONE;
++              } else if (buffer.startsWith("data:") && !buffer.startsWith("data: ")) {
++                output = "data: " + buffer.slice(5) + "\n\n";
++              }
++              reqLogger?.appendConvertedChunk?.(output);
++              controller.enqueue(sharedEncoder.encode(output));
++            }
+           }
+ 
+           // IMPORTANT: In passthrough mode we still must terminate the SSE stream.

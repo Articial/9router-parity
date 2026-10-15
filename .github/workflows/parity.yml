@@ -1,0 +1,20 @@
+name: Pinned 9router Linux parity
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nine-router-parity
+  cancel-in-progress: false
+jobs:
+  parity:
+    if: github.event.repository.private == false && github.repository == 'Articial/9router-parity' && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Build and test once; always clean test resources
+        shell: bash
+        run: bash ci/run.sh

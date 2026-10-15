@@ -1,0 +1,138 @@
+{
+  "name": "nine-parity",
+  "services": {
+    "router": {
+      "image": "9router-parity:local",
+      "platform": "linux/amd64",
+      "user": "1000:1000",
+      "restart": "no",
+      "init": true,
+      "read_only": true,
+      "cap_drop": [
+        "ALL"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "networks": [
+        "mock-net"
+      ],
+      "logging": {
+        "driver": "none"
+      },
+      "container_name": "9router-parity-router",
+      "entrypoint": [
+        "node",
+        "/opt/staging/bootstrap-stage.cjs"
+      ],
+      "mem_limit": "768m",
+      "memswap_limit": "768m",
+      "cpus": 1.0,
+      "pids_limit": 128,
+      "ports": [
+        "127.0.0.1:20129:20128"
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "DATA_DIR": "/app/data",
+        "PORT": "20128",
+        "HOSTNAME": "0.0.0.0",
+        "NODE_OPTIONS": "--max-old-space-size=128",
+        "NEXT_TELEMETRY_DISABLED": "1",
+        "ENABLE_REQUEST_LOGS": "false",
+        "OBSERVABILITY_ENABLED": "false",
+        "DEBUG": "false",
+        "LOG_LEVEL": "ERROR"
+      },
+      "secrets": [
+        "dashboard-password",
+        "jwt-secret"
+      ],
+      "volumes": [
+        "stage-data:/app/data",
+        "./bootstrap-stage.cjs:/opt/staging/bootstrap-stage.cjs:ro"
+      ],
+      "tmpfs": [
+        "/tmp:rw,noexec,nosuid,nodev,size=67108864,mode=1777",
+        "/app/data-home:rw,noexec,nosuid,nodev,size=8388608,uid=1000,gid=1000,mode=0700"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:20128/api/health',{signal:AbortSignal.timeout(3000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ],
+        "interval": "10s",
+        "timeout": "5s",
+        "start_period": "60s",
+        "retries": 3
+      }
+    },
+    "mock": {
+      "image": "9router-parity:local",
+      "platform": "linux/amd64",
+      "user": "1000:1000",
+      "restart": "no",
+      "init": true,
+      "read_only": true,
+      "cap_drop": [
+        "ALL"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "networks": [
+        "mock-net"
+      ],
+      "logging": {
+        "driver": "none"
+      },
+      "container_name": "9router-parity-mock",
+      "entrypoint": [
+        "node",
+        "--max-old-space-size=48",
+        "/opt/mock/mock-provider.cjs"
+      ],
+      "mem_limit": "96m",
+      "memswap_limit": "96m",
+      "cpus": 0.25,
+      "pids_limit": 32,
+      "volumes": [
+        "./mock-provider.cjs:/opt/mock/mock-provider.cjs:ro"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:18080/health',{signal:AbortSignal.timeout(3000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ],
+        "interval": "10s",
+        "timeout": "5s",
+        "start_period": "10s",
+        "retries": 3
+      }
+    }
+  },
+  "networks": {
+    "mock-net": {
+      "name": "9router-parity-net",
+      "driver": "bridge",
+      "internal": true
+    }
+  },
+  "volumes": {
+    "stage-data": {
+      "name": "9router-parity-data"
+    }
+  },
+  "secrets": {
+    "dashboard-password": {
+      "file": "${NINE_CI_RUNTIME:?}/dashboard-password"
+    },
+    "jwt-secret": {
+      "file": "${NINE_CI_RUNTIME:?}/jwt-secret"
+    }
+  }
+}

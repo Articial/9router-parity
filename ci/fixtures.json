@@ -1,0 +1,29 @@
+{
+  "concurrency": 1,
+  "requestTimeoutSeconds": 25,
+  "runDeadlineSeconds": 300,
+  "maximumClientRequests": 32,
+  "maximumUpstreamRequests": 128,
+  "cases": [
+    {"id":"chat-json","endpoint":"chat","model":"gb-a/ok","expectedText":"MOCK_A_OK"},
+    {"id":"responses-json","endpoint":"responses","model":"gb-r/ok","expectedText":"MOCK_R_OK"},
+    {"id":"chat-sse","endpoint":"chat","model":"gb-a/ok","stream":true,"expectedText":"MOCK_A_OK"},
+    {"id":"responses-sse","endpoint":"responses","model":"gb-r/ok","stream":true,"expectedText":"MOCK_R_OK"},
+    {"id":"chat-tools","endpoint":"chat","model":"gb-a/tools","tools":true},
+    {"id":"responses-tools","endpoint":"responses","model":"gb-r/tools","tools":true},
+    {"id":"chat-tool-sse","endpoint":"chat","model":"gb-a/tools","tools":true,"stream":true},
+    {"id":"responses-tool-sse","endpoint":"responses","model":"gb-r/tools","tools":true,"stream":true},
+    {"id":"cancel-chat","endpoint":"chat","model":"gb-a/slow-stream","stream":true,"cancel":true},
+    {"id":"cancel-responses","endpoint":"responses","model":"gb-r/slow-stream","stream":true,"cancel":true},
+    {"id":"429-direct","endpoint":"chat","model":"gb-a/rate-limit","expectedStatus":429,"maxAttempts":1},
+    {"id":"503-direct","endpoint":"chat","model":"gb-a/unavailable","expectedStatus":503,"maxAttempts":4},
+    {"id":"503-retry","endpoint":"chat","model":"gb-a/retry-503","expectedText":"MOCK_A_OK","exactAttempts":2},
+    {"id":"priority","endpoint":"chat","model":"GB-PRIORITY","expectedText":"MOCK_A_OK","lanes":["a"]},
+    {"id":"fallback-429","endpoint":"chat","model":"GB-FALLBACK-429","expectedText":"MOCK_B_OK","lanes":["a","b"]},
+    {"id":"fallback-503","endpoint":"chat","model":"GB-FALLBACK-503","expectedText":"MOCK_B_OK","lanes":["a","b"]},
+    {"id":"fallback-timeout","endpoint":"chat","model":"GB-FALLBACK-TIMEOUT","expectedText":"MOCK_B_OK","lanes":["a","b"]},
+    {"id":"stream-stall","endpoint":"chat","model":"gb-a/stream-stall","stream":true,"expectFailure":true},
+    {"id":"chat-long","endpoint":"chat","model":"gb-a/long","long":true,"expectedText":"LONG_MARKERS_OK"},
+    {"id":"responses-long","endpoint":"responses","model":"gb-r/long","long":true,"expectedText":"LONG_MARKERS_OK"}
+  ]
+}
