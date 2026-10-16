@@ -2,10 +2,12 @@
 import pathlib,os,json,time,urllib.request,urllib.error,subprocess
 from http.cookiejar import CookieJar
 ROOT=pathlib.Path(__file__).resolve().parent
-runtime=pathlib.Path(os.environ['NINE_CI_RUNTIME']);BASE='http://127.0.0.1:20129'
+runtime=pathlib.Path(os.environ['NINE_CI_RUNTIME']);BASE='http://127.0.0.1:20128'
 mock=json.loads(subprocess.check_output(['docker','inspect','9router-parity-mock']))[0]
 network=json.loads(subprocess.check_output(['docker','network','inspect','9router-parity-net']))[0]
 router=json.loads(subprocess.check_output(['docker','inspect','9router-parity-router']))[0]
+assert router['State']['Pid']>0
+assert os.readlink('/proc/self/ns/net')==os.readlink('/proc/'+str(router['State']['Pid'])+'/ns/net')
 assert network['Internal'] and list(router['NetworkSettings']['Networks'])==['9router-parity-net']
 assert list(mock['NetworkSettings']['Networks'])==['9router-parity-net']
 assert router['HostConfig']['PortBindings']=={'20128/tcp':[{'HostIp':'127.0.0.1','HostPort':'20129'}]}

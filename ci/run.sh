@@ -58,6 +58,7 @@ PY
 }
 trap cleanup EXIT
 phase=source
+command -v nsenter >/dev/null
 [[ $(docker info --format '{{.CgroupVersion}}') == 2 ]]
 git init -q "$source_dir"
 git -C "$source_dir" remote add origin https://github.com/decolua/9router.git
@@ -107,5 +108,7 @@ for ((n=0;n<60;n++)); do
 done
 [[ "$ready" == true ]]
 phase=http-smoke
-sudo env NINE_CI_RUNTIME="$NINE_CI_RUNTIME" timeout --signal=TERM --kill-after=10s 300s python3 ci/http-smoke.py
+router_pid=$(docker inspect --format '{{.State.Pid}}' 9router-parity-router)
+[[ "$router_pid" =~ ^[1-9][0-9]*$ ]]
+sudo env NINE_CI_RUNTIME="$NINE_CI_RUNTIME" timeout --signal=TERM --kill-after=10s 300s nsenter --target "$router_pid" --net -- python3 ci/http-smoke.py
 phase=complete
