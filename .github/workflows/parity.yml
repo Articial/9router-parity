@@ -1,13 +1,13 @@
-name: Pinned 9router Linux parity
+name: Pinned 9router staging image export
 on:
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: nine-router-parity
+  group: nine-router-image-export
   cancel-in-progress: false
 jobs:
-  parity:
+  export:
     if: github.event.repository.private == false && github.repository == 'Articial/9router-parity' && github.run_attempt == 1
     runs-on: ubuntu-24.04
     timeout-minutes: 25
@@ -15,6 +15,12 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
-      - name: Build and test once; always clean test resources
-        shell: bash
-        run: bash ci/run.sh
+      - name: Build pinned source and verify reviewed SSE patch
+        run: bash ci/export-image.sh
+      - name: Retain image and integrity manifest for staging
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: nine-staging-image
+          path: ${{ runner.temp }}/nine-export-output/
+          retention-days: 3
+          if-no-files-found: error
