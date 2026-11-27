@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 umask 077
-[[ "${GITHUB_ACTIONS:-}" == true && "$(uname -s)" == Linux && "$(uname -m)" == x86_64 ]]
+[[ "${GITHUB_ACTIONS:-}" == true && "$(uname -s)" == Linux ]]
 [[ "${GITHUB_REPOSITORY:-}" == Articial/9router-parity ]]
+arch=${1:?Specify amd64 or arm64}
+host_machine=$(uname -m)
+docker_machine=$(docker info --format '{{.Architecture}}')
+case "$arch:$host_machine:$docker_machine" in
+  amd64:x86_64:x86_64|amd64:x86_64:amd64|arm64:aarch64:aarch64|arm64:aarch64:arm64) ;;
+  *) printf 'Native %s required (host=%s, Docker=%s)\n' "$arch" "$host_machine" "$docker_machine" >&2; exit 1 ;;
+esac
+export NINE_CI_PLATFORM="linux/$arch"
 sha256sum --check SHA256SUMS >/dev/null
 scratch=$(mktemp -d "${RUNNER_TEMP:?}/nine-parity.XXXXXX")
 source_dir="$scratch/source"
@@ -78,15 +86,18 @@ p.write_text(s)
 assert hashlib.sha256((root/'open-sse/utils/stream.js').read_bytes()).hexdigest()=='9d8f7a780f078dc5d9a23486517e60a651cd2f26d3a9cdb773187c6dc4acd0fb'
 PY
 phase=build
-docker buildx build --platform linux/amd64 --load --provenance=false \
+docker buildx build --platform "$NINE_CI_PLATFORM" --load --provenance=false \
   --metadata-file "$NINE_CI_RUNTIME/build.json" \
   --build-arg NODE_IMAGE=node:22.23.2-alpine@sha256:b6f26b36c8ff49624cfdac716b8ea1138d606df02586a77d364bb5536a634f85 \
   --build-arg APP_VERSION=0.5.95-donefix --tag 9router-parity:local "$source_dir"
 phase=image-verification
-[[ $(docker image inspect --format '{{.Os}}/{{.Architecture}}' 9router-parity:local) == linux/amd64 ]]
-actual=$(docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --user 1000:1000 --entrypoint sha256sum 9router-parity:local /app/open-sse/utils/stream.js)
+[[ $(docker image inspect --format '{{.Os}}/{{.Architecture}}' 9router-parity:local) == "$NINE_CI_PLATFORM" ]]
+check_image=(docker run --rm --pull never --platform "$NINE_CI_PLATFORM" --network none --read-only --cap-drop ALL --security-opt no-new-privileges --user 1000:1000)
+node_arch=$("${check_image[@]}" --entrypoint node 9router-parity:local -p 'process.arch')
+[[ "${node_arch/x64/amd64}" == "$arch" ]]
+actual=$("${check_image[@]}" --entrypoint sha256sum 9router-parity:local /app/open-sse/utils/stream.js)
 [[ "${actual%% *}" == 9d8f7a780f078dc5d9a23486517e60a651cd2f26d3a9cdb773187c6dc4acd0fb ]]
-sudo env NINE_CI_RUNTIME="$NINE_CI_RUNTIME" python3 - <<'PY'
+sudo env NINE_CI_RUNTIME="$NINE_CI_RUNTIME" HOST_MACHINE="$host_machine" DOCKER_MACHINE="$docker_machine" NODE_ARCH="$node_arch" python3 - <<'PY'
 import pathlib,os,json,subprocess,secrets
 r=pathlib.Path(os.environ['NINE_CI_RUNTIME'])
 for name in ['dashboard-password','jwt-secret']:
@@ -94,7 +105,7 @@ for name in ['dashboard-password','jwt-secret']:
 metadata=json.loads((r/'build.json').read_text())
 assert isinstance(metadata.get('containerimage.digest'),str) and metadata['containerimage.digest'].startswith('sha256:')
 image=json.loads(subprocess.check_output(['docker','image','inspect','9router-parity:local']))[0]
-(r/'identity.json').write_text(json.dumps({'imageID':image['Id'],'manifestDigest':metadata.get('containerimage.digest'),'platform':image['Os']+'/'+image['Architecture'],'testedPatchSHA256':'9d8f7a780f078dc5d9a23486517e60a651cd2f26d3a9cdb773187c6dc4acd0fb','sourceCommit':'a99cf57239ff778b61e434c2786009d5ed1c412c'}))
+(r/'identity.json').write_text(json.dumps({'imageID':image['Id'],'manifestDigest':metadata['containerimage.digest'],'platform':image['Os']+'/'+image['Architecture'],'hostMachine':os.environ['HOST_MACHINE'],'dockerMachine':os.environ['DOCKER_MACHINE'],'nodeArch':os.environ['NODE_ARCH'],'testedPatchSHA256':'9d8f7a780f078dc5d9a23486517e60a651cd2f26d3a9cdb773187c6dc4acd0fb','sourceCommit':'a99cf57239ff778b61e434c2786009d5ed1c412c'}))
 PY
 phase=startup
 "${compose[@]}" config --quiet

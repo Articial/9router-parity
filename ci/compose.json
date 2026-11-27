@@ -3,7 +3,7 @@
   "services": {
     "router": {
       "image": "9router-parity:local",
-      "platform": "linux/amd64",
+      "platform": "${NINE_CI_PLATFORM:?}",
       "user": "1000:1000",
       "restart": "no",
       "init": true,
@@ -71,7 +71,7 @@
     },
     "mock": {
       "image": "9router-parity:local",
-      "platform": "linux/amd64",
+      "platform": "${NINE_CI_PLATFORM:?}",
       "user": "1000:1000",
       "restart": "no",
       "init": true,

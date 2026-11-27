@@ -1,6 +1,15 @@
 name: Pinned 9router Linux parity
 on:
   workflow_dispatch:
+    inputs:
+      architecture:
+        description: Native Linux build and test architecture
+        type: choice
+        required: true
+        options:
+          - amd64
+          - arm64
+        default: amd64
 permissions:
   contents: read
 concurrency:
@@ -9,7 +18,7 @@ concurrency:
 jobs:
   parity:
     if: github.event.repository.private == false && github.repository == 'Articial/9router-parity' && github.run_attempt == 1
-    runs-on: ubuntu-24.04
+    runs-on: ${{ inputs.architecture == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -17,4 +26,6 @@ jobs:
           persist-credentials: false
       - name: Build and test once; always clean test resources
         shell: bash
-        run: bash ci/run.sh
+        env:
+          PARITY_ARCH: ${{ inputs.architecture }}
+        run: bash ci/run.sh "$PARITY_ARCH"
